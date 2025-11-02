@@ -1,5 +1,6 @@
 # hazard-management-game
-
+#
+#
 
 # A FUN PYTHON GAME BY K M ASHRAFUL ISLAM
 
@@ -11,8 +12,8 @@
 LINK TO CHOOSING GROUP: https://wheelofnames.com/
 
 # """
-# Group D
-# Group A
-# Group C
-# Group B
+Group A
+Group B
+Group C
+Group D
 # """
