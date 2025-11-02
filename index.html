@@ -11,6 +11,549 @@
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel" src="game.js"></script>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        const { AlertCircle, Shield, Waves, Flame, Wind, Home, TrendingDown } = lucideReact;
+
+        // Lucide React icons inline
+        const IconShield = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+        );
+
+        const IconAlert = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        );
+
+        const HazardManagementGame = () => {
+          const [gameState, setGameState] = useState('welcome');
+          const [currentGroup, setCurrentGroup] = useState(0);
+          const [groups, setGroups] = useState({});
+          const [hazardProbs, setHazardProbs] = useState({});
+          const [currentYear, setCurrentYear] = useState(0);
+          const [yearResults, setYearResults] = useState([]);
+
+          const mitigationOptions = {
+            1: { name: "Vertical Evacuation Structure", cost: 80, effectiveness: { Tsunami: 70, Flood: 60, Hurricane: 50, Earthquake: 20, Fire: 10 } },
+            2: { name: "Seismic Retrofitting of Buildings", cost: 70, effectiveness: { Earthquake: 80, Tsunami: 30, Hurricane: 25, Flood: 10, Fire: 15 } },
+            3: { name: "Early Warning System (Sirens & Sensors)", cost: 50, effectiveness: { Tsunami: 60, Hurricane: 55, Flood: 45, Earthquake: 40, Fire: 35 } },
+            4: { name: "Coastal Levee/Sea Wall", cost: 100, effectiveness: { Tsunami: 85, Flood: 75, Hurricane: 60, Earthquake: 5, Fire: 0 } },
+            5: { name: "Flood Control Channels & Drainage", cost: 60, effectiveness: { Flood: 80, Hurricane: 50, Tsunami: 40, Earthquake: 0, Fire: 5 } },
+            6: { name: "Fire-Resistant Building Codes", cost: 45, effectiveness: { Fire: 75, Earthquake: 15, Hurricane: 10, Tsunami: 0, Flood: 0 } },
+            7: { name: "Community Awareness & Education Program", cost: 25, effectiveness: { All: 30 } },
+            8: { name: "Emergency Shelter Network", cost: 55, effectiveness: { Hurricane: 70, Flood: 65, Fire: 60, Tsunami: 50, Earthquake: 45 } },
+            9: { name: "Firebreak Zones & Vegetation Management", cost: 35, effectiveness: { Fire: 70, Hurricane: 15, Flood: 5, Tsunami: 0, Earthquake: 0 } },
+            10: { name: "Hurricane-Resistant Building Standards", cost: 65, effectiveness: { Hurricane: 80, Flood: 30, Fire: 10, Earthquake: 20, Tsunami: 15 } },
+            11: { name: "Hazard Signage & Evacuation Route Markers", cost: 15, effectiveness: { Tsunami: 25, Hurricane: 25, Flood: 25, Fire: 25, Earthquake: 20 } },
+            12: { name: "Wetland Restoration & Natural Buffers", cost: 40, effectiveness: { Flood: 65, Hurricane: 55, Tsunami: 45, Fire: 10, Earthquake: 0 } },
+            13: { name: "Emergency Response Team Training", cost: 30, effectiveness: { All: 35 } },
+            14: { name: "Backup Power & Communication Systems", cost: 45, effectiveness: { Hurricane: 50, Earthquake: 45, Fire: 40, Flood: 35, Tsunami: 35 } },
+            15: { name: "Land Use Planning & Zoning Restrictions", cost: 20, effectiveness: { Flood: 50, Fire: 45, Tsunami: 40, Hurricane: 30, Earthquake: 25 } },
+            16: { name: "Tsunami Barrier Gates", cost: 90, effectiveness: { Tsunami: 90, Flood: 50, Hurricane: 35, Earthquake: 0, Fire: 0 } },
+            17: { name: "Wildfire Detection & Suppression System", cost: 50, effectiveness: { Fire: 85, Hurricane: 5, Flood: 0, Tsunami: 0, Earthquake: 0 } }
+          };
+
+          const groupBudgets = { "Group A": 50, "Group B": 100, "Group C": 150, "Group D": 200 };
+          const groupNames = ["Group A", "Group B", "Group C", "Group D"];
+
+          const initializeGroups = () => {
+            const newGroups = {};
+            groupNames.forEach(name => {
+              newGroups[name] = {
+                budget: groupBudgets[name],
+                initialBudget: groupBudgets[name],
+                mitigations: [],
+                remainingBudget: groupBudgets[name],
+                yearImpacts: []
+              };
+            });
+            setGroups(newGroups);
+            setGameState('setup');
+          };
+
+          const generateRandomProbs = () => {
+            const ranges = {
+              Tsunami: [15, 45],
+              Earthquake: [10, 20],
+              Flood: [30, 40],
+              Hurricane: [15, 65],
+              Fire: [10, 35]
+            };
+            const probs = {};
+            Object.keys(ranges).forEach(hazard => {
+              const [min, max] = ranges[hazard];
+              probs[hazard] = (Math.random() * (max - min) + min) / 100;
+            });
+            setHazardProbs(probs);
+            setGameState('simulation');
+          };
+
+          const addMitigation = (groupName, optionId) => {
+            const option = mitigationOptions[optionId];
+            const group = groups[groupName];
+            
+            if (option.cost <= group.remainingBudget) {
+              setGroups(prev => ({
+                ...prev,
+                [groupName]: {
+                  ...prev[groupName],
+                  mitigations: [...prev[groupName].mitigations, optionId],
+                  remainingBudget: prev[groupName].remainingBudget - option.cost
+                }
+              }));
+            }
+          };
+
+          const removeMitigation = (groupName, optionId) => {
+            const option = mitigationOptions[optionId];
+            setGroups(prev => ({
+              ...prev,
+              [groupName]: {
+                ...prev[groupName],
+                mitigations: prev[groupName].mitigations.filter(id => id !== optionId),
+                remainingBudget: prev[groupName].remainingBudget + option.cost
+              }
+            }));
+          };
+
+          const nextGroup = () => {
+            if (currentGroup < groupNames.length - 1) {
+              setCurrentGroup(currentGroup + 1);
+            } else {
+              setGameState('probabilities');
+            }
+          };
+
+          const calculateDamage = (groupName, hazard) => {
+            const baseDamage = 100;
+            let totalEffectiveness = 0;
+            
+            groups[groupName].mitigations.forEach(mitId => {
+              const option = mitigationOptions[mitId];
+              if (option.effectiveness.All) {
+                totalEffectiveness += option.effectiveness.All;
+              } else if (option.effectiveness[hazard]) {
+                totalEffectiveness += option.effectiveness[hazard];
+              }
+            });
+            
+            totalEffectiveness = Math.min(totalEffectiveness, 95);
+            const damage = Math.floor(baseDamage * (1 - totalEffectiveness / 100));
+            
+            return { damage, effectiveness: totalEffectiveness };
+          };
+
+          const simulateYear = () => {
+            const yearNum = currentYear + 1;
+            const occurringHazards = [];
+            
+            Object.keys(hazardProbs).forEach(hazard => {
+              if (Math.random() < hazardProbs[hazard]) {
+                occurringHazards.push(hazard);
+              }
+            });
+            
+            const results = {};
+            groupNames.forEach(groupName => {
+              let totalDamage = 0;
+              const hazardDetails = {};
+              
+              occurringHazards.forEach(hazard => {
+                const { damage, effectiveness } = calculateDamage(groupName, hazard);
+                totalDamage += damage;
+                hazardDetails[hazard] = { damage, effectiveness };
+              });
+              
+              results[groupName] = {
+                hazards: occurringHazards,
+                totalDamage,
+                hazardDetails
+              };
+              
+              setGroups(prev => ({
+                ...prev,
+                [groupName]: {
+                  ...prev[groupName],
+                  yearImpacts: [...prev[groupName].yearImpacts, {
+                    year: yearNum,
+                    hazards: occurringHazards,
+                    damage: totalDamage
+                  }]
+                }
+              }));
+            });
+            
+            setYearResults(prev => [...prev, { year: yearNum, results }]);
+            setCurrentYear(yearNum);
+            
+            if (yearNum >= 5) {
+              setGameState('results');
+            }
+          };
+
+          const getFinalResults = () => {
+            return groupNames.map(groupName => {
+              const group = groups[groupName];
+              const totalDamage = group.yearImpacts.reduce((sum, year) => sum + year.damage, 0);
+              const investment = group.initialBudget - group.remainingBudget;
+              const efficiencyScore = investment > 0 ? (totalDamage + group.remainingBudget) / investment : Infinity;
+              
+              return {
+                group: groupName,
+                initialBudget: group.initialBudget,
+                investment,
+                unspent: group.remainingBudget,
+                totalDamage,
+                efficiencyScore
+              };
+            }).sort((a, b) => a.efficiencyScore - b.efficiencyScore);
+          };
+
+          if (gameState === 'welcome') {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-cyan-900 p-8">
+                <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-2xl p-8">
+                  <div className="text-center mb-8">
+                    <div className="flex justify-center mb-4">
+                      <IconShield />
+                    </div>
+                    <h1 className="text-4xl font-bold text-gray-900 mb-2">Coastal Community</h1>
+                    <h2 className="text-3xl font-bold text-blue-600 mb-4">Multihazard Risk Management Game</h2>
+                    <p className="text-gray-600 text-lg">Protect your community from natural disasters!</p>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-6 rounded-lg mb-6">
+                    <h3 className="font-bold text-xl mb-3 text-blue-900">Game Overview</h3>
+                    <ul className="space-y-2 text-gray-700">
+                      <li>• Four groups manage coastal communities over 5 years</li>
+                      <li>• Each group has a different budget to invest in hazard mitigation</li>
+                      <li>• Choose wisely from 17 different mitigation strategies</li>
+                      <li>• Natural disasters will strike randomly based on probability</li>
+                      <li>• Goal: Minimize damage while maximizing cost-effectiveness!</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    {groupNames.map(name => (
+                      <div key={name} className="bg-gray-50 p-4 rounded border-2 border-gray-200">
+                        <div className="font-bold text-lg">{name}</div>
+                        <div className="text-blue-600">Budget: {groupBudgets[name]} points</div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={initializeGroups}
+                    className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-bold text-xl hover:bg-blue-700 transition"
+                  >
+                    Start Game
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (gameState === 'setup') {
+            const groupName = groupNames[currentGroup];
+            const group = groups[groupName];
+            
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-cyan-900 p-8">
+                <div className="max-w-6xl mx-auto">
+                  <div className="bg-white rounded-lg shadow-2xl p-8 mb-6">
+                    <h2 className="text-3xl font-bold text-blue-900 mb-2">{groupName} Setup</h2>
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="text-xl">
+                        <span className="text-gray-600">Budget: </span>
+                        <span className="font-bold text-blue-600">{group.initialBudget} points</span>
+                      </div>
+                      <div className="text-xl">
+                        <span className="text-gray-600">Remaining: </span>
+                        <span className="font-bold text-green-600">{group.remainingBudget} points</span>
+                      </div>
+                    </div>
+                    
+                    {group.mitigations.length > 0 && (
+                      <div className="mb-6 bg-green-50 p-4 rounded-lg">
+                        <h3 className="font-bold text-lg mb-2 text-green-900">Selected Mitigations:</h3>
+                        <div className="space-y-2">
+                          {group.mitigations.map(id => (
+                            <div key={id} className="flex justify-between items-center bg-white p-2 rounded">
+                              <span className="text-sm">{mitigationOptions[id].name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-blue-600">{mitigationOptions[id].cost} pts</span>
+                                <button
+                                  onClick={() => removeMitigation(groupName, id)}
+                                  className="text-red-600 hover:text-red-800 text-sm font-bold"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={nextGroup}
+                      className="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-bold text-lg hover:bg-green-700 transition mb-6"
+                    >
+                      {currentGroup < groupNames.length - 1 ? 'Next Group' : 'Set Hazard Probabilities'}
+                    </button>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-2xl p-6">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Available Mitigation Options</h3>
+                    <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
+                      {Object.entries(mitigationOptions).map(([id, option]) => {
+                        const canAfford = option.cost <= group.remainingBudget;
+                        const isSelected = group.mitigations.includes(parseInt(id));
+                        
+                        return (
+                          <div key={id} className={`p-4 rounded-lg border-2 ${isSelected ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <h4 className="font-bold text-gray-900">{option.name}</h4>
+                                <div className="text-sm text-gray-600 mt-1">
+                                  {option.effectiveness.All ? (
+                                    <span>All Hazards: {option.effectiveness.All}%</span>
+                                  ) : (
+                                    <span>
+                                      {Object.entries(option.effectiveness)
+                                        .filter(([_, eff]) => eff > 0)
+                                        .map(([haz, eff]) => `${haz}: ${eff}%`)
+                                        .join(', ')}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="font-bold text-blue-600">{option.cost} pts</span>
+                                <button
+                                  onClick={() => addMitigation(groupName, parseInt(id))}
+                                  disabled={!canAfford || isSelected}
+                                  className={`px-4 py-2 rounded font-bold ${
+                                    canAfford && !isSelected
+                                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  }`}
+                                >
+                                  {isSelected ? 'Selected' : 'Add'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (gameState === 'probabilities') {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-cyan-900 p-8 flex items-center justify-center">
+                <div className="max-w-2xl bg-white rounded-lg shadow-2xl p-8">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Set Hazard Probabilities</h2>
+                  <p className="text-gray-600 mb-8 text-center">Click to generate random disaster probabilities</p>
+                  <button
+                    onClick={generateRandomProbs}
+                    className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-bold text-xl hover:bg-blue-700 transition"
+                  >
+                    Generate Random Probabilities
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (gameState === 'simulation') {
+            const currentYearResult = yearResults[currentYear - 1];
+            
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-cyan-900 p-8">
+                <div className="max-w-6xl mx-auto">
+                  <div className="bg-white rounded-lg shadow-2xl p-8 mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                      {currentYear === 0 ? '5-Year Simulation Ready' : `Year ${currentYear} Results`}
+                    </h2>
+                    
+                    {currentYear === 0 ? (
+                      <div>
+                        <div className="bg-blue-50 p-6 rounded-lg mb-6">
+                          <h3 className="font-bold text-xl mb-3">Hazard Probabilities</h3>
+                          <div className="grid grid-cols-2 gap-3">
+                            {Object.entries(hazardProbs).map(([hazard, prob]) => (
+                              <div key={hazard} className="flex items-center gap-2">
+                                <span className="font-semibold">{hazard}:</span>
+                                <span className="text-blue-600">{(prob * 100).toFixed(1)}% per year</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={simulateYear}
+                          className="w-full bg-green-600 text-white py-4 px-6 rounded-lg font-bold text-xl hover:bg-green-700 transition"
+                        >
+                          Start Year 1
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        {currentYearResult.results[groupNames[0]].hazards.length === 0 ? (
+                          <div className="bg-green-50 p-6 rounded-lg mb-6 text-center">
+                            <h3 className="text-2xl font-bold text-green-800">🎉 No Hazards This Year!</h3>
+                            <p className="text-green-600 mt-2">All communities are safe</p>
+                          </div>
+                        ) : (
+                          <div className="mb-6">
+                            <div className="bg-red-50 p-6 rounded-lg mb-6">
+                              <h3 className="text-xl font-bold text-red-900 mb-3 flex items-center gap-2">
+                                Hazards This Year: {currentYearResult.results[groupNames[0]].hazards.join(', ')}
+                              </h3>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 gap-4">
+                              {groupNames.map(groupName => {
+                                const result = currentYearResult.results[groupName];
+                                return (
+                                  <div key={groupName} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+                                    <h4 className="font-bold text-lg mb-2">{groupName}</h4>
+                                    {result.hazards.length > 0 ? (
+                                      <div>
+                                        {result.hazards.map(hazard => (
+                                          <div key={hazard} className="text-sm mb-1">
+                                            <span className="font-semibold">{hazard}:</span> {result.hazardDetails[hazard].damage} damage 
+                                            <span className="text-green-600 ml-2">
+                                              ({result.hazardDetails[hazard].effectiveness}% protection)
+                                            </span>
+                                          </div>
+                                        ))}
+                                        <div className="font-bold mt-2 text-red-600">
+                                          Total Damage: {result.totalDamage} points
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-green-600">No damage</div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <button
+                          onClick={simulateYear}
+                          className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-bold text-xl hover:bg-blue-700 transition"
+                        >
+                          {currentYear < 5 ? `Simulate Year ${currentYear + 1}` : 'View Final Results'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (gameState === 'results') {
+            const finalResults = getFinalResults();
+            
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-cyan-900 p-8">
+                <div className="max-w-6xl mx-auto">
+                  <div className="bg-white rounded-lg shadow-2xl p-8 mb-6">
+                    <h2 className="text-4xl font-bold text-gray-900 mb-6 text-center">Final Results</h2>
+                    
+                    <div className="space-y-4 mb-8">
+                      {finalResults.map((result, index) => (
+                        <div
+                          key={result.group}
+                          className={`p-6 rounded-lg border-2 ${
+                            index === 0 ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <h3 className="text-2xl font-bold">
+                              {index + 1}. {result.group}
+                              {index === 0 && <span className="ml-3 text-3xl">🏆</span>}
+                            </h3>
+                            {index === 0 && (
+                              <span className="bg-yellow-500 text-white px-4 py-1 rounded-full font-bold">
+                                WINNER
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div>
+                              <div className="text-sm text-gray-600">Initial Budget</div>
+                              <div className="text-lg font-bold">{result.initialBudget} pts</div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-gray-600">Investment</div>
+                              <div className="text-lg font-bold text-blue-600">{result.investment} pts</div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-gray-600">Unspent Budget</div>
+                              <div className="text-lg font-bold text-green-600">{result.unspent} pts</div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-gray-600">Total Damage</div>
+                              <div className="text-lg font-bold text-red-600">{result.totalDamage} pts</div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-gray-600">Efficiency Score</div>
+                              <div className="text-lg font-bold">
+                                {result.efficiencyScore === Infinity ? '∞' : result.efficiencyScore.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="bg-blue-50 p-6 rounded-lg">
+                      <h3 className="text-xl font-bold mb-4">Year-by-Year Breakdown</h3>
+                      {groupNames.map(groupName => (
+                        <div key={groupName} className="mb-4">
+                          <h4 className="font-bold text-lg mb-2">{groupName}</h4>
+                          <div className="space-y-1 text-sm">
+                            {groups[groupName].yearImpacts.map(impact => (
+                              <div key={impact.year}>
+                                Year {impact.year}: {impact.hazards.length > 0 ? `${impact.hazards.join(', ')} → ${impact.damage} damage` : 'No hazards → 0 damage'}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="w-full mt-6 bg-blue-600 text-white py-4 px-6 rounded-lg font-bold text-xl hover:bg-blue-700 transition"
+                    >
+                      Play Again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        };
+
+        ReactDOM.render(<HazardManagementGame />, document.getElementById('root'));
+    </script>
 </body>
 </html>
