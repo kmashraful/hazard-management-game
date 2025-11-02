@@ -1,4 +1,4 @@
-# hazard-management-game
+# 🌊 hazard-management-game
 #
 #
 
