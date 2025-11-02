@@ -17,3 +17,5 @@ Group B
 Group C
 Group D
 # """
+
+Link to game: https://kmashraful.github.io/hazard-management-game/
