@@ -1,14 +1,14 @@
 # hazard-management-game
 
-# #######################################################
-# ####### A FUN PYTHON GAME BY K M ASHRAFUL ISLAM #######
-# #######################################################
 
-## GAME Version: 2.1
-## Date: Octoer, 2025
+# A FUN PYTHON GAME BY K M ASHRAFUL ISLAM
 
 
-# ## LINK TO CHOOSING GROUP: https://wheelofnames.com/
+# GAME Version: 2.1
+# Date: Octoer, 2025
+
+
+LINK TO CHOOSING GROUP: https://wheelofnames.com/
 
 # """
 # Group D
