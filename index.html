@@ -22,6 +22,7 @@
           const [hazardProbs, setHazardProbs] = useState({});
           const [currentYear, setCurrentYear] = useState(0);
           const [yearResults, setYearResults] = useState([]);
+          const [isSimulating, setIsSimulating] = useState(false);
 
           const mitigationOptions = {
             1: { name: "Vertical Evacuation Structure", cost: 80, effectiveness: { Tsunami: 70, Flood: 60, Hurricane: 50, Earthquake: 20, Fire: 10 } },
@@ -134,51 +135,84 @@
           };
 
           const simulateYear = () => {
-            const yearNum = currentYear + 1;
-            const occurringHazards = [];
-            
-            Object.keys(hazardProbs).forEach(hazard => {
-              if (Math.random() < hazardProbs[hazard]) {
-                occurringHazards.push(hazard);
-              }
-            });
-            
-            const results = {};
-            groupNames.forEach(groupName => {
-              let totalDamage = 0;
-              const hazardDetails = {};
+            // setIsSimulating(true);
+
+            // // Drumroll sound
+            // const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            // const drumroll = audioContext.createOscillator();
+            // drumroll.frequency.value = 100;
+            // drumroll.connect(audioContext.destination);
+            // drumroll.start();
+            // setTimeout(() => drumroll.stop(), 2800);
+
+          setIsSimulating(true);
+
+          // Better drumroll
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          for (let i = 0; i < 15; i++) {
+            setTimeout(() => {
+              const osc = audioContext.createOscillator();
+              osc.frequency.value = 80;
+              osc.connect(audioContext.destination);
+              osc.start();
+              osc.stop(audioContext.currentTime + 0.1);
+            }, i * 180);
+          }
+
+            setTimeout(() => {
+              const yearNum = currentYear + 1;
+              const occurringHazards = [];
               
-              occurringHazards.forEach(hazard => {
-                const { damage, effectiveness } = calculateDamage(groupName, hazard);
-                totalDamage += damage;
-                hazardDetails[hazard] = { damage, effectiveness };
+              Object.keys(hazardProbs).forEach(hazard => {
+                if (Math.random() < hazardProbs[hazard]) {
+                  occurringHazards.push(hazard);
+                }
               });
               
-              results[groupName] = {
-                hazards: occurringHazards,
-                totalDamage,
-                hazardDetails
-              };
+              const results = {};
+              groupNames.forEach(groupName => {
+                let totalDamage = 0;
+                const hazardDetails = {};
+                
+                occurringHazards.forEach(hazard => {
+                  const { damage, effectiveness } = calculateDamage(groupName, hazard);
+                  totalDamage += damage;
+                  hazardDetails[hazard] = { damage, effectiveness };
+                });
+                
+                results[groupName] = {
+                  hazards: occurringHazards,
+                  totalDamage,
+                  hazardDetails
+                };
+                
+                setGroups(prev => ({
+                  ...prev,
+                  [groupName]: {
+                    ...prev[groupName],
+                    yearImpacts: [...prev[groupName].yearImpacts, {
+                      year: yearNum,
+                      hazards: occurringHazards,
+                      damage: totalDamage
+                    }]
+                  }
+                }));
+              });
               
-              setGroups(prev => ({
-                ...prev,
-                [groupName]: {
-                  ...prev[groupName],
-                  yearImpacts: [...prev[groupName].yearImpacts, {
-                    year: yearNum,
-                    hazards: occurringHazards,
-                    damage: totalDamage
-                  }]
-                }
-              }));
-            });
-            
-            setYearResults(prev => [...prev, { year: yearNum, results }]);
-            setCurrentYear(yearNum);
-            
-            if (yearNum >= 5) {
-              setGameState('results');
-            }
+              // setYearResults(prev => [...prev, { year: yearNum, results }]);
+              // setCurrentYear(yearNum);
+              // setIsSimulating(false);
+              setYearResults(prev => [...prev, { year: yearNum, results }]);
+              setCurrentYear(yearNum);
+              setIsSimulating(false);
+
+// Don't auto-advance to results after year 5
+// User clicks button to see final results
+              
+              // if (yearNum >= 5) {
+              //   setGameState('results');
+              // }
+            }, 3000);
           };
 
           const getFinalResults = () => {
@@ -407,11 +441,40 @@
               <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem'}}>
                 <div style={{maxWidth: '72rem', margin: '0 auto'}}>
                   <div style={{background: 'white', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '2rem', marginBottom: '1.5rem'}}>
-                    <h2 style={{fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', marginBottom: '1rem'}}>
-                      {currentYear === 0 ? '5-Year Simulation Ready' : `Year ${currentYear} Results`}
+                     <h2 style={{fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', marginBottom: '1rem'}}>
+                      {isSimulating ? 'Simulation in Progress' : (currentYear === 0 ? '5-Year Simulation Ready' : `Year ${currentYear} Results`)}
                     </h2>
-                    
-                    {currentYear === 0 ? (
+            
+                    {isSimulating ? (
+                      <div style={{textAlign: 'center', padding: '4rem 2rem'}}>
+                        <div style={{fontSize: '4rem', marginBottom: '1.5rem', animation: 'pulse 1.5s ease-in-out infinite'}}>
+                          ⚠️
+                        </div>
+                        <h3 style={{fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', marginBottom: '1rem'}}>
+                          Analyzing Natural Hazards...
+                        </h3>
+                        <p style={{fontSize: '1.25rem', color: '#4b5563', marginBottom: '1rem'}}>
+                          Simulating Year {currentYear + 1}
+                        </p>
+                        <div style={{display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1.5rem'}}>
+                          <div style={{width: '12px', height: '12px', background: '#2563eb', borderRadius: '50%', animation: 'bounce 1s ease-in-out infinite'}}></div>
+                          <div style={{width: '12px', height: '12px', background: '#2563eb', borderRadius: '50%', animation: 'bounce 1s ease-in-out 0.2s infinite'}}></div>
+                          <div style={{width: '12px', height: '12px', background: '#2563eb', borderRadius: '50%', animation: 'bounce 1s ease-in-out 0.4s infinite'}}></div>
+                        </div>
+                        <style>
+                          {`
+                            @keyframes pulse {
+                              0%, 100% { transform: scale(1); opacity: 1; }
+                              50% { transform: scale(1.1); opacity: 0.8; }
+                            }
+                            @keyframes bounce {
+                              0%, 100% { transform: translateY(0); }
+                              50% { transform: translateY(-10px); }
+                            }
+                          `}
+                        </style>
+                      </div>
+                    ) : currentYear === 0 ? (
                       <div>
                         <div style={{background: '#eff6ff', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '1.5rem'}}>
                           <h3 style={{fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.75rem'}}>Hazard Probabilities</h3>
@@ -425,7 +488,8 @@
                           </div>
                         </div>
                         <button
-                          onClick={simulateYear}
+                          // onClick={simulateYear}
+                          onClick={currentYear < 5 ? simulateYear : () => setGameState('results')}
                           style={{
                             width: '100%',
                             background: '#16a34a',
@@ -437,6 +501,7 @@
                             border: 'none',
                             cursor: 'pointer'
                           }}
+                          disabled={isSimulating}
                         >
                           Start Year 1
                         </button>
@@ -446,7 +511,7 @@
                         {currentYearResult.results[groupNames[0]].hazards.length === 0 ? (
                           <div style={{background: '#f0fdf4', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '1.5rem', textAlign: 'center'}}>
                             <h3 style={{fontSize: '1.5rem', fontWeight: 'bold', color: '#166534'}}>🎉 No Hazards This Year!</h3>
-                            <p style={{color: '#16a34a', marginTop: '0.5rem'}}>⛑️ All communities are safe</p>
+                            <p style={{color: '#16a34a', marginTop: '0.5rem'}}>⛱️ All communities are safe</p>
                           </div>
                         ) : (
                           <div style={{marginBottom: '1.5rem'}}>
@@ -487,7 +552,7 @@
                         )}
                         
                         <button
-                          onClick={simulateYear}
+                          onClick={currentYear < 5 ? simulateYear : () => setGameState('results')}
                           style={{
                             width: '100%',
                             background: '#2563eb',
@@ -499,6 +564,7 @@
                             border: 'none',
                             cursor: 'pointer'
                           }}
+                          disabled={isSimulating}
                         >
                           {currentYear < 5 ? `Simulate Year ${currentYear + 1}` : 'View Final Results'}
                         </button>
@@ -538,7 +604,7 @@
                             </h3>
                             {index === 0 && (
                               <span style={{background: '#eab308', color: 'white', padding: '0.25rem 1rem', borderRadius: '9999px', fontWeight: 'bold'}}>
-WINNER
+                                WINNER
                               </span>
                             )}
                           </div>
@@ -616,4 +682,5 @@ WINNER
         root.render(<HazardManagementGame />);
     </script>
 </body>
-</html>    
+</html>
+                            
