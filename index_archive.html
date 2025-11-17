@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coastal Community Hazard Management Game</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+
+        const HazardManagementGame = () => {
+          const [gameState, setGameState] = useState('welcome');
+          const [currentGroup, setCurrentGroup] = useState(0);
+          const [groups, setGroups] = useState({});
+          const [hazardProbs, setHazardProbs] = useState({});
+          const [currentYear, setCurrentYear] = useState(0);
+          const [yearResults, setYearResults] = useState([]);
+
+          const mitigationOptions = {
+            1: { name: "Vertical Evacuation Structure", cost: 80, effectiveness: { Tsunami: 70, Flood: 60, Hurricane: 50, Earthquake: 20, Fire: 10 } },
+            2: { name: "Seismic Retrofitting of Buildings", cost: 70, effectiveness: { Earthquake: 80, Tsunami: 30, Hurricane: 25, Flood: 10, Fire: 15 } },
+            3: { name: "Early Warning System", cost: 50, effectiveness: { Tsunami: 60, Hurricane: 55, Flood: 45, Earthquake: 40, Fire: 35 } },
+            4: { name: "Coastal Levee/Sea Wall", cost: 100, effectiveness: { Tsunami: 85, Flood: 75, Hurricane: 60, Earthquake: 5, Fire: 0 } },
+            5: { name: "Flood Control Channels", cost: 60, effectiveness: { Flood: 80, Hurricane: 50, Tsunami: 40, Earthquake: 0, Fire: 5 } },
+            6: { name: "Fire-Resistant Building Codes", cost: 45, effectiveness: { Fire: 75, Earthquake: 15, Hurricane: 10, Tsunami: 0, Flood: 0 } },
+            7: { name: "Community Education Program", cost: 25, effectiveness: { All: 30 } },
+            8: { name: "Emergency Shelter Network", cost: 55, effectiveness: { Hurricane: 70, Flood: 65, Fire: 60, Tsunami: 50, Earthquake: 45 } },
+            9: { name: "Firebreak Zones", cost: 35, effectiveness: { Fire: 70, Hurricane: 15, Flood: 5, Tsunami: 0, Earthquake: 0 } },
+            10: { name: "Hurricane-Resistant Standards", cost: 65, effectiveness: { Hurricane: 80, Flood: 30, Fire: 10, Earthquake: 20, Tsunami: 15 } },
+            11: { name: "Evacuation Route Markers", cost: 15, effectiveness: { Tsunami: 25, Hurricane: 25, Flood: 25, Fire: 25, Earthquake: 20 } },
+            12: { name: "Wetland Restoration", cost: 40, effectiveness: { Flood: 65, Hurricane: 55, Tsunami: 45, Fire: 10, Earthquake: 0 } },
+            13: { name: "Emergency Response Training", cost: 30, effectiveness: { All: 35 } },
+            14: { name: "Backup Power Systems", cost: 45, effectiveness: { Hurricane: 50, Earthquake: 45, Fire: 40, Flood: 35, Tsunami: 35 } },
+            15: { name: "Land Use Planning", cost: 20, effectiveness: { Flood: 50, Fire: 45, Tsunami: 40, Hurricane: 30, Earthquake: 25 } },
+            16: { name: "Tsunami Barrier Gates", cost: 90, effectiveness: { Tsunami: 90, Flood: 50, Hurricane: 35, Earthquake: 0, Fire: 0 } },
+            17: { name: "Wildfire Detection System", cost: 50, effectiveness: { Fire: 85, Hurricane: 5, Flood: 0, Tsunami: 0, Earthquake: 0 } }
+          };
+
+          const groupBudgets = { "Group A": 50, "Group B": 100, "Group C": 150, "Group D": 200 };
+          const groupNames = ["Group A", "Group B", "Group C", "Group D"];
+
+          const initializeGroups = () => {
+            const newGroups = {};
+            groupNames.forEach(name => {
+              newGroups[name] = {
+                budget: groupBudgets[name],
+                initialBudget: groupBudgets[name],
+                mitigations: [],
+                remainingBudget: groupBudgets[name],
+                yearImpacts: []
+              };
+            });
+            setGroups(newGroups);
+            setGameState('setup');
+          };
+
+          const generateRandomProbs = () => {
+            const ranges = {
+              Tsunami: [15, 45],
+              Earthquake: [10, 20],
+              Flood: [30, 40],
+              Hurricane: [15, 65],
+              Fire: [10, 35]
+            };
+            const probs = {};
+            Object.keys(ranges).forEach(hazard => {
+              const [min, max] = ranges[hazard];
+              probs[hazard] = (Math.random() * (max - min) + min) / 100;
+            });
+            setHazardProbs(probs);
+            setGameState('simulation');
+          };
+
+          const addMitigation = (groupName, optionId) => {
+            const option = mitigationOptions[optionId];
+            const group = groups[groupName];
+            
+            if (option.cost <= group.remainingBudget) {
+              setGroups(prev => ({
+                ...prev,
+                [groupName]: {
+                  ...prev[groupName],
+                  mitigations: [...prev[groupName].mitigations, optionId],
+                  remainingBudget: prev[groupName].remainingBudget - option.cost
+                }
+              }));
+            }
+          };
+
+          const removeMitigation = (groupName, optionId) => {
+            const option = mitigationOptions[optionId];
+            setGroups(prev => ({
+              ...prev,
+              [groupName]: {
+                ...prev[groupName],
+                mitigations: prev[groupName].mitigations.filter(id => id !== optionId),
+                remainingBudget: prev[groupName].remainingBudget + option.cost
+              }
+            }));
+          };
+
+          const nextGroup = () => {
+            if (currentGroup < groupNames.length - 1) {
+              setCurrentGroup(currentGroup + 1);
+            } else {
+              setGameState('probabilities');
+            }
+          };
+
+          const calculateDamage = (groupName, hazard) => {
+            const baseDamage = 100;
+            let totalEffectiveness = 0;
+            
+            groups[groupName].mitigations.forEach(mitId => {
+              const option = mitigationOptions[mitId];
+              if (option.effectiveness.All) {
+                totalEffectiveness += option.effectiveness.All;
+              } else if (option.effectiveness[hazard]) {
+                totalEffectiveness += option.effectiveness[hazard];
+              }
+            });
+            
+            totalEffectiveness = Math.min(totalEffectiveness, 95);
+            const damage = Math.floor(baseDamage * (1 - totalEffectiveness / 100));
+            
+            return { damage, effectiveness: totalEffectiveness };
+          };
+
+          const simulateYear = () => {
+            const yearNum = currentYear + 1;
+            const occurringHazards = [];
+            
+            Object.keys(hazardProbs).forEach(hazard => {
+              if (Math.random() < hazardProbs[hazard]) {
+                occurringHazards.push(hazard);
+              }
+            });
+            
+            const results = {};
+            groupNames.forEach(groupName => {
+              let totalDamage = 0;
+              const hazardDetails = {};
+              
+              occurringHazards.forEach(hazard => {
+                const { damage, effectiveness } = calculateDamage(groupName, hazard);
+                totalDamage += damage;
+                hazardDetails[hazard] = { damage, effectiveness };
+              });
+              
+              results[groupName] = {
+                hazards: occurringHazards,
+                totalDamage,
+                hazardDetails
+              };
+              
+              setGroups(prev => ({
+                ...prev,
+                [groupName]: {
+                  ...prev[groupName],
+                  yearImpacts: [...prev[groupName].yearImpacts, {
+                    year: yearNum,
+                    hazards: occurringHazards,
+                    damage: totalDamage
+                  }]
+                }
+              }));
+            });
+            
+            setYearResults(prev => [...prev, { year: yearNum, results }]);
+            setCurrentYear(yearNum);
+            
+            if (yearNum >= 5) {
+              setGameState('results');
+            }
+          };
+
+          const getFinalResults = () => {
+            return groupNames.map(groupName => {
+              const group = groups[groupName];
+              const totalDamage = group.yearImpacts.reduce((sum, year) => sum + year.damage, 0);
+              const investment = group.initialBudget - group.remainingBudget;
+              const efficiencyScore = investment > 0 ? (totalDamage + group.remainingBudget) / investment : Infinity;
+              
+              return {
+                group: groupName,
+                initialBudget: group.initialBudget,
+                investment,
+                unspent: group.remainingBudget,
+                totalDamage,
+                efficiencyScore
+              };
+            }).sort((a, b) => a.efficiencyScore - b.efficiencyScore);
+          };
+
+          if (gameState === 'welcome') {
+            return (
+              <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem'}}>
+                <div style={{maxWidth: '56rem', margin: '0 auto', background: 'white', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '2rem'}}>
+                  <div style={{textAlign: 'center', marginBottom: '2rem'}}>
+                    <div style={{fontSize: '3rem', marginBottom: '1rem'}}>🌊</div>
+                    <h1 style={{fontSize: '2.5rem', fontWeight: 'bold', color: '#111827', marginBottom: '0.5rem'}}>Multihazard Risk Management Game</h1>
+                    <h2 style={{fontSize: '2rem', fontWeight: 'bold', color: '#2563eb', marginBottom: '1rem'}}>A fun simulation game by Ashraful (aka Ash)</h2>
+                    <h3 style={{fontSize: '1rem', fontWeight: 'italic', color: '#d73f09', marginBottom: '1rem'}}>Oregon State University</h3>
+                    <p style={{color: '#4b5563', fontSize: '1.125rem'}}>Peeps! Protect your community from natural disasters!</p>
+                  </div>
+                  
+                  <div style={{background: '#eff6ff', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '1.5rem'}}>
+                    <h3 style={{fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.75rem', color: '#1e3a8a'}}>Game Overview</h3>
+                    <ul style={{listStyle: 'none', padding: 0}}>
+                      <li style={{marginBottom: '0.5rem', color: '#374151'}}>• Four groups manage coastal communities over 5 years</li>
+                      <li style={{marginBottom: '0.5rem', color: '#374151'}}>• Each group has a different budget to invest</li>
+                      <li style={{marginBottom: '0.5rem', color: '#374151'}}>• Choose from 17 different mitigation strategies</li>
+                      <li style={{marginBottom: '0.5rem', color: '#374151'}}>• Natural disasters strike randomly</li>
+                      <li style={{marginBottom: '0.5rem', color: '#374151'}}>• Goal: Minimize damage, maximize efficiency!</li>
+                    </ul>
+                  </div>
+                  
+                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.5rem'}}>
+                    {groupNames.map(name => (
+                      <div key={name} style={{background: '#f9fafb', padding: '1rem', borderRadius: '0.25rem', border: '2px solid #e5e7eb'}}>
+                        <div style={{fontWeight: 'bold', fontSize: '1.125rem'}}>{name}</div>
+                        <div style={{color: '#2563eb'}}>Budget: {groupBudgets[name]} points</div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={initializeGroups}
+                    style={{
+                      width: '100%',
+                      background: '#2563eb',
+                      color: 'white',
+                      padding: '1rem 1.5rem',
+                      borderRadius: '0.5rem',
+                      fontWeight: 'bold',
+                      fontSize: '1.25rem',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Start Game
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (gameState === 'setup') {
+            const groupName = groupNames[currentGroup];
+            const group = groups[groupName];
+            
+            return (
+              <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem'}}>
+                <div style={{maxWidth: '72rem', margin: '0 auto'}}>
+                  <div style={{background: 'white', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '2rem', marginBottom: '1.5rem'}}>
+                    <h2 style={{fontSize: '1.875rem', fontWeight: 'bold', color: '#1e3a8a', marginBottom: '0.5rem'}}>{groupName} Setup</h2>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
+                      <div style={{fontSize: '1.25rem'}}>
+                        <span style={{color: '#4b5563'}}>Budget: </span>
+                        <span style={{fontWeight: 'bold', color: '#2563eb'}}>{group.initialBudget} points</span>
+                      </div>
+                      <div style={{fontSize: '1.25rem'}}>
+                        <span style={{color: '#4b5563'}}>Remaining: </span>
+                        <span style={{fontWeight: 'bold', color: '#16a34a'}}>{group.remainingBudget} points</span>
+                      </div>
+                    </div>
+                    
+                    {group.mitigations.length > 0 && (
+                      <div style={{marginBottom: '1.5rem', background: '#f0fdf4', padding: '1rem', borderRadius: '0.5rem'}}>
+                        <h3 style={{fontWeight: 'bold', fontSize: '1.125rem', marginBottom: '0.5rem', color: '#166534'}}>Selected Mitigations:</h3>
+                        <div>
+                          {group.mitigations.map(id => (
+                            <div key={id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.5rem', borderRadius: '0.25rem', marginBottom: '0.5rem'}}>
+                              <span style={{fontSize: '0.875rem'}}>{mitigationOptions[id].name}</span>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                <span style={{fontSize: '0.875rem', color: '#2563eb'}}>{mitigationOptions[id].cost} pts</span>
+                                <button
+                                  onClick={() => removeMitigation(groupName, id)}
+                                  style={{color: '#dc2626', fontWeight: 'bold', fontSize: '0.875rem', background: 'none', border: 'none', cursor: 'pointer'}}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={nextGroup}
+                      style={{
+                        width: '100%',
+                        background: '#16a34a',
+                        color: 'white',
+                        padding: '0.75rem 1.5rem',
+                        borderRadius: '0.5rem',
+                        fontWeight: 'bold',
+                        fontSize: '1.125rem',
+                        border: 'none',
+                        cursor: 'pointer',
+                        marginBottom: '1.5rem'
+                      }}
+                    >
+                      {currentGroup < groupNames.length - 1 ? 'Next Group' : 'Set Hazard Probabilities'}
+                    </button>
+                  </div>
+                  
+                  <div style={{background: 'white', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '1.5rem'}}>
+                    <h3 style={{fontSize: '1.5rem', fontWeight: 'bold', color: '#111827', marginBottom: '1rem'}}>Available Mitigation Options</h3>
+                    <div style={{maxHeight: '24rem', overflowY: 'auto'}}>
+                      {Object.entries(mitigationOptions).map(([id, option]) => {
+                        const canAfford = option.cost <= group.remainingBudget;
+                        const isSelected = group.mitigations.includes(parseInt(id));
+                        
+                        return (
+                          <div key={id} style={{
+                            padding: '1rem',
+                            borderRadius: '0.5rem',
+                            border: isSelected ? '2px solid #16a34a' : '2px solid #e5e7eb',
+                            background: isSelected ? '#f0fdf4' : 'white',
+                            marginBottom: '0.75rem'
+                          }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem'}}>
+                              <div style={{flex: 1}}>
+                                <h4 style={{fontWeight: 'bold', color: '#111827', marginBottom: '0.25rem'}}>{option.name}</h4>
+                                <div style={{fontSize: '0.875rem', color: '#4b5563'}}>
+                                  {option.effectiveness.All ? (
+                                    <span>All Hazards: {option.effectiveness.All}%</span>
+                                  ) : (
+                                    <span>
+                                      {Object.entries(option.effectiveness)
+                                        .filter(([_, eff]) => eff > 0)
+                                        .map(([haz, eff]) => `${haz}: ${eff}%`)
+                                        .join(', ')}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
+                                <span style={{fontWeight: 'bold', color: '#2563eb'}}>{option.cost} pts</span>
+                                <button
+                                  onClick={() => addMitigation(groupName, parseInt(id))}
+                                  disabled={!canAfford || isSelected}
+                                  style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.25rem',
+                                    fontWeight: 'bold',
+                                    border: 'none',
+                                    cursor: canAfford && !isSelected ? 'pointer' : 'not-allowed',
+                                    background: canAfford && !isSelected ? '#2563eb' : '#d1d5db',
+                                    color: canAfford && !isSelected ? 'white' : '#6b7280'
+                                  }}
+                                >
+                                  {isSelected ? 'Selected' : 'Add'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (gameState === 'probabilities') {
+            return (
+              <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                <div style={{maxWidth: '42rem', background: 'white', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '2rem'}}>
+                  <h2 style={{fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', marginBottom: '1.5rem', textAlign: 'center'}}>Set Hazard Probabilities</h2>
+                  <p style={{color: '#4b5563', marginBottom: '2rem', textAlign: 'center'}}>Click to generate random disaster probabilities</p>
+                  <button
+                    onClick={generateRandomProbs}
+                    style={{
+                      width: '100%',
+                      background: '#2563eb',
+                      color: 'white',
+                      padding: '1rem 1.5rem',
+                      borderRadius: '0.5rem',
+                      fontWeight: 'bold',
+                      fontSize: '1.25rem',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Generate Random Probabilities
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (gameState === 'simulation') {
+            const currentYearResult = yearResults[currentYear - 1];
+            
+            return (
+              <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem'}}>
+                <div style={{maxWidth: '72rem', margin: '0 auto'}}>
+                  <div style={{background: 'white', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '2rem', marginBottom: '1.5rem'}}>
+                    <h2 style={{fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', marginBottom: '1rem'}}>
+                      {currentYear === 0 ? '5-Year Simulation Ready' : `Year ${currentYear} Results`}
+                    </h2>
+                    
+                    {currentYear === 0 ? (
+                      <div>
+                        <div style={{background: '#eff6ff', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '1.5rem'}}>
+                          <h3 style={{fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.75rem'}}>Hazard Probabilities</h3>
+                          <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem'}}>
+                            {Object.entries(hazardProbs).map(([hazard, prob]) => (
+                              <div key={hazard} style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                <span style={{fontWeight: '600'}}>{hazard}:</span>
+                                <span style={{color: '#2563eb'}}>{(prob * 100).toFixed(1)}% per year</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={simulateYear}
+                          style={{
+                            width: '100%',
+                            background: '#16a34a',
+                            color: 'white',
+                            padding: '1rem 1.5rem',
+                            borderRadius: '0.5rem',
+                            fontWeight: 'bold',
+                            fontSize: '1.25rem',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Start Year 1
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        {currentYearResult.results[groupNames[0]].hazards.length === 0 ? (
+                          <div style={{background: '#f0fdf4', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '1.5rem', textAlign: 'center'}}>
+                            <h3 style={{fontSize: '1.5rem', fontWeight: 'bold', color: '#166534'}}>🎉 No Hazards This Year!</h3>
+                            <p style={{color: '#16a34a', marginTop: '0.5rem'}}>⛑️ All communities are safe</p>
+                          </div>
+                        ) : (
+                          <div style={{marginBottom: '1.5rem'}}>
+                            <div style={{background: '#fef2f2', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '1.5rem'}}>
+                              <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', color: '#991b1b', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                Hazards This Year: {currentYearResult.results[groupNames[0]].hazards.join(', ')}
+                              </h3>
+                            </div>
+                            
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr', gap: '1rem'}}>
+                              {groupNames.map(groupName => {
+                                const result = currentYearResult.results[groupName];
+                                return (
+                                  <div key={groupName} style={{background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', border: '2px solid #e5e7eb'}}>
+                                    <h4 style={{fontWeight: 'bold', fontSize: '1.125rem', marginBottom: '0.5rem'}}>{groupName}</h4>
+                                    {result.hazards.length > 0 ? (
+                                      <div>
+                                        {result.hazards.map(hazard => (
+                                          <div key={hazard} style={{fontSize: '0.875rem', marginBottom: '0.25rem'}}>
+                                            <span style={{fontWeight: '600'}}>{hazard}:</span> {result.hazardDetails[hazard].damage} damage 
+                                            <span style={{color: '#16a34a', marginLeft: '0.5rem'}}>
+                                              ({result.hazardDetails[hazard].effectiveness}% protection)
+                                            </span>
+                                          </div>
+                                        ))}
+                                        <div style={{fontWeight: 'bold', marginTop: '0.5rem', color: '#dc2626'}}>
+                                          Total Damage: {result.totalDamage} points
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div style={{color: '#16a34a'}}>No damage</div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <button
+                          onClick={simulateYear}
+                          style={{
+                            width: '100%',
+                            background: '#2563eb',
+                            color: 'white',
+                            padding: '1rem 1.5rem',
+                            borderRadius: '0.5rem',
+                            fontWeight: 'bold',
+                            fontSize: '1.25rem',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {currentYear < 5 ? `Simulate Year ${currentYear + 1}` : 'View Final Results'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (gameState === 'results') {
+            const finalResults = getFinalResults();
+            
+            return (
+              <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem'}}>
+                <div style={{maxWidth: '72rem', margin: '0 auto'}}>
+                  <div style={{background: 'white', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '2rem', marginBottom: '1.5rem'}}>
+                    <h2 style={{fontSize: '2.25rem', fontWeight: 'bold', color: '#111827', marginBottom: '1.5rem', textAlign: 'center'}}>Final Results</h2>
+                    
+                    <div style={{marginBottom: '2rem'}}>
+                      {finalResults.map((result, index) => (
+                        <div
+                          key={result.group}
+                          style={{
+                            padding: '1.5rem',
+                            borderRadius: '0.5rem',
+                            border: index === 0 ? '2px solid #eab308' : '2px solid #e5e7eb',
+                            background: index === 0 ? '#fefce8' : '#f9fafb',
+                            marginBottom: '1rem'
+                          }}
+                        >
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem'}}>
+                            <h3 style={{fontSize: '1.5rem', fontWeight: 'bold'}}>
+                              {index + 1}. {result.group}
+                              {index === 0 && <span style={{marginLeft: '0.75rem', fontSize: '1.875rem'}}>🏆</span>}
+                            </h3>
+                            {index === 0 && (
+                              <span style={{background: '#eab308', color: 'white', padding: '0.25rem 1rem', borderRadius: '9999px', fontWeight: 'bold'}}>
+WINNER
+                              </span>
+                            )}
+                          </div>
+                          <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem'}}>
+                            <div>
+                              <div style={{fontSize: '0.875rem', color: '#4b5563'}}>Initial Budget</div>
+                              <div style={{fontSize: '1.125rem', fontWeight: 'bold'}}>{result.initialBudget} pts</div>
+                            </div>
+                            <div>
+                              <div style={{fontSize: '0.875rem', color: '#4b5563'}}>Investment</div>
+                              <div style={{fontSize: '1.125rem', fontWeight: 'bold', color: '#2563eb'}}>{result.investment} pts</div>
+                            </div>
+                            <div>
+                              <div style={{fontSize: '0.875rem', color: '#4b5563'}}>Unspent Budget</div>
+                              <div style={{fontSize: '1.125rem', fontWeight: 'bold', color: '#16a34a'}}>{result.unspent} pts</div>
+                            </div>
+                            <div>
+                              <div style={{fontSize: '0.875rem', color: '#4b5563'}}>Total Damage</div>
+                              <div style={{fontSize: '1.125rem', fontWeight: 'bold', color: '#dc2626'}}>{result.totalDamage} pts</div>
+                            </div>
+                            <div>
+                              <div style={{fontSize: '0.875rem', color: '#4b5563'}}>Efficiency Score</div>
+                              <div style={{fontSize: '1.125rem', fontWeight: 'bold'}}>
+                                {result.efficiencyScore === Infinity ? '∞' : result.efficiencyScore.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div style={{background: '#eff6ff', padding: '1.5rem', borderRadius: '0.5rem'}}>
+                      <h3 style={{fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem'}}>Year-by-Year Breakdown</h3>
+                      {groupNames.map(groupName => (
+                        <div key={groupName} style={{marginBottom: '1rem'}}>
+                          <h4 style={{fontWeight: 'bold', fontSize: '1.125rem', marginBottom: '0.5rem'}}>{groupName}</h4>
+                          <div>
+                            {groups[groupName].yearImpacts.map(impact => (
+                              <div key={impact.year} style={{fontSize: '0.875rem', marginBottom: '0.25rem'}}>
+                                Year {impact.year}: {impact.hazards.length > 0 ? `${impact.hazards.join(', ')} → ${impact.damage} damage` : 'No hazards → 0 damage'}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <button
+                      onClick={() => window.location.reload()}
+                      style={{
+                        width: '100%',
+                        marginTop: '1.5rem',
+                        background: '#2563eb',
+                        color: 'white',
+                        padding: '1rem 1.5rem',
+                        borderRadius: '0.5rem',
+                        fontWeight: 'bold',
+                        fontSize: '1.25rem',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Play Again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<HazardManagementGame />);
+    </script>
+</body>
+</html>    
