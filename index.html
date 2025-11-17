@@ -8,28 +8,6 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      /* --- Animation Styles --- */
-      .hazard-pulse {
-        animation: hazardPulse 1.2s infinite;
-      }
-      @keyframes hazardPulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.2); opacity: 0.7; }
-        100% { transform: scale(1); opacity: 1; }
-      }
-      .dot-bounce {
-        display: inline-block;
-        animation: dotBounce 1.3s infinite;
-      }
-      .dot-bounce:nth-child(2) { animation-delay: 0.18s; }
-      .dot-bounce:nth-child(3) { animation-delay: 0.36s; }
-
-      @keyframes dotBounce {
-        0%, 80%, 100% { transform: translateY(0);}
-        40% { transform: translateY(-10px);}
-      }
-    </style>
 </head>
 <body>
     <div id="root"></div>
@@ -44,7 +22,6 @@
           const [hazardProbs, setHazardProbs] = useState({});
           const [currentYear, setCurrentYear] = useState(0);
           const [yearResults, setYearResults] = useState([]);
-          const [isSimulating, setIsSimulating] = useState(false);
 
           const mitigationOptions = {
             1: { name: "Vertical Evacuation Structure", cost: 80, effectiveness: { Tsunami: 70, Flood: 60, Hurricane: 50, Earthquake: 20, Fire: 10 } },
@@ -154,15 +131,6 @@
             const damage = Math.floor(baseDamage * (1 - totalEffectiveness / 100));
             
             return { damage, effectiveness: totalEffectiveness };
-          };
-
-          // --- new handling for simulate year with 3s animation ---
-          const simulateYearWithAnimation = () => {
-            setIsSimulating(true);
-            setTimeout(() => {
-              simulateYear();
-              setIsSimulating(false);
-            }, 3000);
           };
 
           const simulateYear = () => {
@@ -309,7 +277,7 @@
                         <h3 style={{fontWeight: 'bold', fontSize: '1.125rem', marginBottom: '0.5rem', color: '#166534'}}>Selected Mitigations:</h3>
                         <div>
                           {group.mitigations.map(id => (
-                            <div key={id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.5rem', borderRadius: '0.25rem', marginBottom:[]
+                            <div key={id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.5rem', borderRadius: '0.25rem', marginBottom: '0.5rem'}}>
                               <span style={{fontSize: '0.875rem'}}>{mitigationOptions[id].name}</span>
                               <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                                 <span style={{fontSize: '0.875rem', color: '#2563eb'}}>{mitigationOptions[id].cost} pts</span>
@@ -407,7 +375,7 @@
 
           if (gameState === 'probabilities') {
             return (
-              <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'cente[...]
+              <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                 <div style={{maxWidth: '42rem', background: 'white', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '2rem'}}>
                   <h2 style={{fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', marginBottom: '1.5rem', textAlign: 'center'}}>Set Hazard Probabilities</h2>
                   <p style={{color: '#4b5563', marginBottom: '2rem', textAlign: 'center'}}>Click to generate random disaster probabilities</p>
@@ -434,40 +402,6 @@
 
           if (gameState === 'simulation') {
             const currentYearResult = yearResults[currentYear - 1];
-
-            // If simulating, show the dramatic animation screen!
-            if (isSimulating) {
-              return (
-                <div style={{
-                  minHeight: "100vh",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "linear-gradient(to bottom right, #0f172a, #fbbf24 60%, #dc2626 120%)"
-                }}>
-                  <div style={{
-                    background: "rgba(255,255,255,0.95)",
-                    borderRadius: "0.75rem",
-                    padding: "2.5rem 2rem",
-                    boxShadow: "0 15px 40px -8px #d97706, 0 2px 10px #7f1d1d2b",
-                    minWidth: "350px", maxWidth: "400px", textAlign: "center"
-                  }}>
-                    <div style={{fontSize:"3.8rem"}}>
-                      <span className="hazard-pulse" style={{display: "inline-block"}}>⚠️</span>
-                    </div>
-                    <div style={{fontWeight: "bold", fontSize:"1.5rem", color:"#be123c", marginTop:"1.3rem"}}>Analyzing Natural Hazards...</div>
-                    <div style={{color:"#374151", fontSize:"1.2rem", marginTop:"0.5rem", marginBottom:"1.7rem"}}>
-                      Year {currentYear + 1}
-                    </div>
-                    <div style={{height:"38px", marginTop:"1.7rem"}}>
-                      <span className="dot-bounce" style={{fontSize:"2.3rem"}}>.</span>
-                      <span className="dot-bounce" style={{fontSize:"2.3rem"}}>.</span>
-                      <span className="dot-bounce" style={{fontSize:"2.3rem"}}>.</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
             
             return (
               <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #1e3a8a, #1e40af, #0e7490)', padding: '2rem'}}>
@@ -491,18 +425,17 @@
                           </div>
                         </div>
                         <button
-                          onClick={simulateYearWithAnimation}
-                          disabled={isSimulating}
+                          onClick={simulateYear}
                           style={{
                             width: '100%',
-                            background: isSimulating ? '#d1d5db' : '#16a34a',
-                            color: isSimulating ? '#6b7280' : 'white',
+                            background: '#16a34a',
+                            color: 'white',
                             padding: '1rem 1.5rem',
                             borderRadius: '0.5rem',
                             fontWeight: 'bold',
                             fontSize: '1.25rem',
                             border: 'none',
-                            cursor: isSimulating ? 'not-allowed' : 'pointer'
+                            cursor: 'pointer'
                           }}
                         >
                           Start Year 1
@@ -554,18 +487,17 @@
                         )}
                         
                         <button
-                          onClick={simulateYearWithAnimation}
-                          disabled={isSimulating}
+                          onClick={simulateYear}
                           style={{
                             width: '100%',
-                            background: isSimulating ? '#d1d5db' : '#2563eb',
-                            color: isSimulating ? '#6b7280' : 'white',
+                            background: '#2563eb',
+                            color: 'white',
                             padding: '1rem 1.5rem',
                             borderRadius: '0.5rem',
                             fontWeight: 'bold',
                             fontSize: '1.25rem',
                             border: 'none',
-                            cursor: isSimulating ? 'not-allowed' : 'pointer'
+                            cursor: 'pointer'
                           }}
                         >
                           {currentYear < 5 ? `Simulate Year ${currentYear + 1}` : 'View Final Results'}
